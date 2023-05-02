@@ -97,7 +97,7 @@ const Home: NextPage  = () => {
 
       const patient = await db
           .collection("patient")
-          .findOne({_id: ObjectId('645174155a19b5b1405eb419')}, {name:1})
+          .findOne({_id: ObjectId(inputPatientName}, {name:1})
 
       loadedPatientName = patient;
     } catch (e) {
