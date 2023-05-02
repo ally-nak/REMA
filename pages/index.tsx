@@ -9,11 +9,21 @@ import LoadingDots from "../components/LoadingDots";
 import Link from 'next/link';
 import { useRouter } from "next/router";
 
-const Home: NextPage = () => {
+//database
+import clientPromise from "../database/mongodb";
+import { InferGetServerSidePropsType } from 'next'
+import {ObjectId} from "mongodb";
+
+const Home: NextPage  = () => {
   /* State variables that store user input and GPT-3 results */ 
   const [loading, setLoading] = useState(false);
+  const [createPatientLoading, setCreatePatientLoading] = useState(false);
+  const [loadPatientLoading, setloadPatientLoading] = useState(false);
   const [clinicalNote, setClinicalNote] = useState("");
+  const [inputPatientName, setInputPatientName] = useState("");
   const [apiKey, setApiKey] = useState("");
+
+  let loadedPatientName = null;
 
   /* Router to navigate between pages*/
   const router = useRouter();
@@ -73,6 +83,36 @@ const Home: NextPage = () => {
     }
   };
 
+
+  //on-click event that queries mongoDB database and returns the name as the appropriate global variable
+  //This is a temporary work-around, will be moving to a getServerSideProps() model as soon as possible
+  // (TODO for now because it requires rewriting this entire document)
+  const loadPatient = async (e: any) => {
+  e.preventDefault();
+  setloadPatientLoading(true);
+
+  try {
+      const client = await clientPromise;
+      const db = client.db("patients");
+
+      const patient = await db
+          .collection("patient")
+          .findOne({_id: ObjectId('645174155a19b5b1405eb419')}, {name:1})
+
+      loadedPatientName = patient;
+    } catch (e) {
+        console.error(e);
+    }
+  };
+
+
+  //placeholder function, need to figure out what information CMS1500 needs
+  const createNewPatient = async (e: any) => {
+    e.preventDefault();
+    setCreatePatientLoading(true);
+    return {}
+  }
+
   return (
     <div className="flex max-w-5xl mx-auto flex-col items-center justify-center py-2 min-h-screen">
       <Head>
@@ -84,11 +124,80 @@ const Home: NextPage = () => {
         <h1 className="sm:text-6xl text-4xl max-w-[708px] font-bold text-slate-900">
           Automate medical coding using GPT
         </h1>
+
         <p className="text-slate-500 mt-5">Works with the latest ICD-10 codes.</p>
+
         <div className="max-w-xl w-full">
           <div className="flex mt-10 items-center space-x-3">
             <Image
               src="/1-black.png"
+              width={30}
+              height={30}
+              alt="1 icon"
+              className="mb-5 sm:mb-0"
+            />
+            <p className="text-left font-medium">
+              Create a new patient...{" "}
+              <span className="text-slate-500">
+                (import from EPIC coming soon)
+              </span>
+              .
+            </p>
+          </div>
+
+          {!createPatientLoading && (
+              <button onClick={(e) => createNewPatient(e)} className="bg-black rounded-xl text-white font-medium px-4 py-2 sm:mt-10 mt-8 hover:bg-black/80 w-full">
+                Create New Patient &rarr;
+              </button>
+          )}
+          {createPatientLoading && (
+            <button className="bg-black rounded-xl text-white font-medium px-4 py-2 sm:mt-10 mt-8 hover:bg-black/80 w-full"
+              disabled>
+              <LoadingDots color="white" style="large" />
+              </button>
+          )}
+
+          <div className="flex mt-10 items-center space-x-3">
+            <p className="text-left font-medium">
+              ...or load your existing patient information.
+              .
+            </p>
+          </div>
+
+
+          <textarea
+            value={inputPatientName}
+            onChange={(e) => setInputPatientName(e.target.value)}
+            rows={2}
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black my-5"
+            placeholder={
+              "Enter your existing patient ID."
+            }
+          />
+          {!loadPatientLoading && (
+              <button onClick={(e) => loadPatient(e)} className="bg-black rounded-xl text-white font-medium px-4 py-2 sm:mt-10 mt-8 hover:bg-black/80 w-full">
+                Load Existing Patient &rarr;
+              </button>
+          )}
+          {loadPatientLoading && (
+            <button className="bg-black rounded-xl text-white font-medium px-4 py-2 sm:mt-10 mt-8 hover:bg-black/80 w-full"
+              disabled>
+              <LoadingDots color="white" style="large" />
+              </button>
+          )}
+
+          <br/>
+          {loadedPatientName ? (
+            <h2 className="subtitle">Patient Information for {loadedPatientName} has been loaded. </h2>
+          ) : (
+            <h2 className="subtitle">
+              No Patient Information Currently Loaded.
+            </h2>
+          )}
+
+          <div className="flex mt-10 items-center space-x-3">
+            <Image
+              src="/2-black.png"
               width={30}
               height={30}
               alt="1 icon"
@@ -124,7 +233,7 @@ const Home: NextPage = () => {
           )}
         </div>
       </main>
-    </div> 
+    </div>
   );
 };
 
