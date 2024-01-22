@@ -11,6 +11,7 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react'
 import { getEHRData, getPatientData, getAccessToken } from "./api/ehr_request";
+import { TupleType } from "typescript";
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -42,11 +43,13 @@ const Home: NextPage = () => {
   const [pageTexts, setPageTexts] = useState<string[]>([]);
   const [patients, setPatients] = useState<string[]>([]);
   const [patientIDs, setPatientIDs] = useState<string[]>([]);
+  const [birthdays, setBirthdays] = useState<string[][]>([[]]);
+  const [addresses, setAddresses] = useState<string[][]>([[]]);
+  const [phonenumbers, setPhoneNumbers] = useState<string[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<string | undefined>();
   const [selectedPatientID, setSelectedPatientID] = useState<string | undefined>();
   const [token, setToken] = useState<string | null>(null);
   const [expiry, setExpiry] = useState<Date | null>(null);
-
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -76,17 +79,33 @@ const Home: NextPage = () => {
       const patientData = res.data.entry;
       var patientList = [];
       var patientIDsTemp = [];
+      var bdays = [];
+      var addys = [];
+      var phones = [];
       for (let i = 0; i < patientData.length; i++) {
         patientIDsTemp.push(patientData[i].resource.id);
         const nameEntry = patientData[i].resource.name[0];
         patientList.push(nameEntry.given[0] + " " + nameEntry.family);
+        console.log("BIRTHDAYYYY", patientData[i].resource.birthDate);
+        const bday = patientData[i].resource.birthDate.split("-"); // "2023-06-07" format
+        bdays.push([bday[1], bday[2], bday[0]]) // (MM, DD, YYYY)
+        phones.push(patientData[i].resource.telecom[0].value) // "1234567890" format
+        const addressObject = patientData[i].resource.address[0];
+        addys.push([addressObject.line[0], addressObject.city, addressObject.state, addressObject.postalCode]); // (street, city, state, zip)
       }
       console.log("PATIENTS:", patientList);
       console.log("PATIENT IDS:", patientIDsTemp);
+      console.log("bdays:", bdays);
+      console.log("addys:", addys);
+      console.log("phonenumber:", phones);
+      /* record the values in useState */
       setSelectedPatient(patientList[0]);
       setSelectedPatientID(patientIDsTemp[0]);
       setPatients(patientList);
       setPatientIDs(patientIDsTemp);
+      setBirthdays(bdays);
+      setAddresses(addys);
+      setPhoneNumbers(phones);
     }
   };
 
@@ -99,6 +118,19 @@ const Home: NextPage = () => {
     if (selectedPatient) {
       const index = patients.indexOf(selectedPatient);
       setSelectedPatientID(patientIDs[index]);
+      const patientDetailsObject: Record<string, any> = { 
+        "id": patientIDs[index], 
+        "pt_name": selectedPatient, 
+        "pt_street": addresses[index][0], 
+        "pt_city": addresses[index][1], 
+        "pt_state": addresses[index][2], 
+        "pt_zip": addresses[index][3], 
+        "pt_phone": phonenumbers[index], 
+        "birth_mm": birthdays[index][0], 
+        "birth_dd": birthdays[index][1],
+        "birth_yy": birthdays[index][2]
+      }
+      setPatientDetails((JSON.stringify(patientDetailsObject)));
     }
   }, [selectedPatient])
 
@@ -343,13 +375,13 @@ const Home: NextPage = () => {
 
   /* polls database and load matched patient information */
   const loadPatient = async (e: any) => {
-    console.log("patient name is", inputPatientName)
-    console.log("loading patient info....")
+    console.log("patient name is", inputPatientName);
+    console.log("loading patient info....");
 
-    let { data } = await supabase.from('patients').select().eq('id', parseInt(inputPatientName))
-    console.log("patient info is...", JSON.stringify(data[0]))
-    setPatientDetails((JSON.stringify(data[0])))
-    setLoadedPatientName(data[0]["pt_name"]) // always returned as a list of 1
+    let { data } = await supabase.from('patients').select().eq('id', parseInt(inputPatientName));
+    console.log("patient info is...", JSON.stringify(data[0]));
+    setPatientDetails((JSON.stringify(data[0])));
+    setLoadedPatientName(data[0]["pt_name"]); // always returned as a list of 1
   }
 
 
