@@ -23,7 +23,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         },
         httpsAgent // Add httpsAgent to axios request config
       });
-
+      console.log("token response", response);
       res.status(200).json(response.data);
     } catch (error) {
       res.status(500).json({ error: error.message });
